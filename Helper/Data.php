@@ -75,19 +75,20 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
             $this->_mlogger->info($message);
         }
     }
-    public function getMergeVars($customer,$store = null)
+    public function getMergeVars($customer, $store = null)
     {
         $merge_vars = array();
         $mergeVars  = unserialize($this->scopeConfig->getValue(self::XML_PATH_MAPPING, \Magento\Store\Model\ScopeInterface::SCOPE_STORE, $store));
         foreach($mergeVars as $map)
         {
-            $this->_getMergeVarsValue($map, $customer);
+            $merge_vars = $this->_getMergeVarsValues($map, $customer);
         }
         return $merge_vars;
     }
 
-    protected function _getMergeVarsValue($map, $customer)
+    protected function _getMergeVarsValues($map, $customer)
     {
+        $merge_vars = array();
         $customAtt = $map['magento'];
         $chimpTag  = $map['mailchimp'];
         if($chimpTag && $customAtt) {
@@ -119,17 +120,7 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
                     break;
                 case 'billing_address':
                 case 'shipping_address':
-                    $addr = explode('_', $customAtt);
-                    if ($address = $customer->{'getPrimary' . ucfirst($addr[0]) . 'Address'}()) {
-                        $merge_vars[$key] = array(
-                            'addr1' => $address->getStreet(1),
-                            'addr2' => $address->getStreet(2),
-                            'city' => $address->getCity(),
-                            'state' => (!$address->getRegion() ? $address->getCity() : $address->getRegion()),
-                            'zip' => $address->getPostcode(),
-                            'country' => $address->getCountryId()
-                        );
-                    }
+                    $this->_getAddress($customAtt, $key, $customer, $merge_vars);
                     break;
                 case 'telephone':
                     if ($address = $customer->{'getPrimaryBillingAddress'}()) {
@@ -165,7 +156,23 @@ class Data extends \Magento\Framework\App\Helper\AbstractHelper
                     break;
 
             }
+            $this->log('merge_vars');
+            $this->log(print_r(json_encode($merge_vars), 1));
             return $merge_vars;
+        }
+    }
+
+    protected function _getAddress($customAtt, $key, $customer, &$merge_vars){
+        $addr = explode('_', $customAtt);
+        if ($address = $customer->{'getDefault' . ucfirst($addr[0]) . 'Address'}()) {
+            $merge_vars[$key] = array(
+                'addr1' => $address->getStreet(1),
+                'addr2' => $address->getStreet(2),
+                'city' => $address->getCity(),
+                'state' => (!$address->getRegion() ? $address->getCity() : $address->getRegion()),
+                'zip' => $address->getPostcode(),
+                'country' => $address->getCountryId()
+            );
         }
     }
 }
